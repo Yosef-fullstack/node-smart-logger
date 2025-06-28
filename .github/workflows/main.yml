@@ -46,6 +46,6 @@ jobs:
           version: 10.12.4
       - run: pnpm install
       - run: pnpm run build
-      - run: pnpm publish --no-git-checks
+      - run: pnpm publish --no-git-checks --access=public
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}

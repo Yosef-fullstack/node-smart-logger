@@ -1,9 +1,9 @@
 # Node Smart Logger
 
-[![npm version](https://img.shields.io/npm/v/node-smart-logger.svg)](https://www.npmjs.com/package/node-smart-logger)
-[![Downloads](https://img.shields.io/npm/dm/node-smart-logger.svg)](https://www.npmjs.com/package/node-smart-logger)
-[![Build Status](https://github.com/yourusername/node-smart-logger/actions/workflows/main.yml/badge.svg)](https://github.com/yourusername/node-smart-logger/actions)
-[![Coverage Status](https://coveralls.io/repos/github/yourusername/node-smart-logger/badge.svg?branch=main)](https://coveralls.io/github/yourusername/node-smart-logger?branch=main)
+[![npm version](https://img.shields.io/npm/v/@vitaly-yosef/node-smart-logger.svg)](https://www.npmjs.com/package/@vitaly-yosef/node-smart-logger)
+[![Downloads](https://img.shields.io/npm/dm/@vitaly-yosef/node-smart-logger.svg)](https://www.npmjs.com/package/@vitaly-yosef/node-smart-logger)
+[![Build Status](https://github.com/Yosef-fullstack/node-smart-logger/actions/workflows/main.yml/badge.svg)](https://github.com/Yosef-fullstack/node-smart-logger/actions)
+[![Coverage Status](https://coveralls.io/repos/github/Yosef-fullstack/node-smart-logger/badge.svg?branch=master)](https://coveralls.io/github/Yosef-fullstack/node-smart-logger?branch=master)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
 Универсальный модуль логирования с расширенными функциями, включая структурированное логирование в формате JSON, интеграцию с AWS CloudWatch Logs и контекстное логирование.
@@ -25,13 +25,13 @@
 
 ```bash
 # Используя npm
-npm install node-smart-logger
+npm install @vitaly-yosef/node-smart-logger
 
 # Используя yarn
-yarn add node-smart-logger
+yarn add @vitaly-yosef/node-smart-logger
 
 # Используя pnpm
-pnpm add node-smart-logger
+pnpm add @vitaly-yosef/node-smart-logger
 ```
 
 ## Использование
@@ -39,7 +39,7 @@ pnpm add node-smart-logger
 ### Базовое использование
 
 ```javascript
-import { createLogger } from 'node-smart-logger';
+import { createLogger } from '@vitaly-yosef/node-smart-logger';
 
 // Создание экземпляра логгера с именем сервиса и путем к лог-файлам
 const logger = createLogger('my-service', './logs');
@@ -55,7 +55,7 @@ logger.alert('Критическое предупреждение');
 ### Контекстное логирование
 
 ```javascript
-import { createLogger, setLoggerContext, clearLoggerContext, generateLoggerTraceId } from 'node-smart-logger';
+import { createLogger, setLoggerContext, clearLoggerContext, generateLoggerTraceId } from '@vitaly-yosef/node-smart-logger';
 
 const logger = createLogger('my-service', './logs');
 
@@ -73,7 +73,7 @@ clearLoggerContext();
 Дополнительные примеры контекстного логирования.
 
 ```javascript
-const { createLogger, setLoggerContext, clearLoggerContext } = require('node-smart-logger');
+const { createLogger, setLoggerContext, clearLoggerContext } = require('@vitaly-yosef/node-smart-logger');
 
 const logger = createLogger('my-service', './logs');
 
@@ -101,7 +101,7 @@ function processDevice(deviceId, data) {
 Или более удобный способ с использованием метода ```withOperationContext```.
 
 ```javascript
-const { createLogger } = require('node-smart-logger');
+const { createLogger } = require('@vitaly-yosef/node-smart-logger');
 
 const logger = createLogger('my-service', './logs');
 
@@ -122,7 +122,7 @@ function processDevice(deviceId, data) {
 
 ```javascript
 import express from 'express';
-import { createLogger, createHttpLogger, createErrorLogger } from 'node-smart-logger';
+import { createLogger, createHttpLogger, createErrorLogger } from '@vitaly-yosef/node-smart-logger';
 
 const app = express();
 const logger = createLogger('api-service', './logs');
@@ -242,7 +242,7 @@ npm test -- --coverage
 
 ```javascript
 // Мок модуля логгера
-jest.mock('node-smart-logger', () => {
+jest.mock('@vitaly-yosef/node-smart-logger', () => {
   return {
     createLogger: jest.fn().mockReturnValue({
       info: jest.fn(),
