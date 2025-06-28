@@ -15,10 +15,10 @@ jest.mock('winston', () => {
         return info;
       }
     });
-    
+
     return formatterFn;
   });
-  
+
   // Adding methods to the function 'format':
   formatFn.combine = jest.fn().mockImplementation((...formatters) => {
     return {
@@ -45,20 +45,35 @@ jest.mock('winston', () => {
   formatFn.errors = jest.fn().mockReturnValue({
     transform: (info = {}) => info
   });
+  formatFn.splat = jest.fn().mockReturnValue({
+    transform: (info = {}) => info
+  });
 
-  return {
-    createLogger: jest.fn().mockImplementation(() => ({
+  const createLoggerMock = jest.fn().mockImplementation((options = {}) => {
+    // Используем переменную окружения LOG_LEVEL, если она установлена
+    const level = process.env.LOG_LEVEL || 'info';
+
+    return {
       info: jest.fn(),
       error: jest.fn(),
       warn: jest.fn(),
       debug: jest.fn(),
+      http: jest.fn(),
       log: jest.fn(),
-      add: jest.fn()
-    })),
+      // Добавляем методы контекста
+      getContext: jest.fn().mockReturnValue({}),
+      setContext: jest.fn(),
+      clearContext: jest.fn(),
+      generateTraceId: jest.fn().mockReturnValue('mock-trace-id')
+    };
+  });
+
+  return {
+    createLogger: createLoggerMock,
     format: formatFn,
     transports: {
+      File: jest.fn(),
       Console: jest.fn(),
-      File: jest.fn()
     },
     addColors: jest.fn()
   };
@@ -66,34 +81,45 @@ jest.mock('winston', () => {
 
 // Import modules after mocks
 const winston = require('winston');
-const loggerModule = require('../index.ts');
+const { createLogger } = require('../index.ts');
 
-// Mock module's methods
-jest.spyOn(loggerModule, 'getLoggerContext').mockImplementation(() => ({}));
-jest.spyOn(loggerModule, 'setLoggerContext').mockImplementation(() => {});
-jest.spyOn(loggerModule, 'clearLoggerContext').mockImplementation(() => {});
-jest.spyOn(loggerModule, 'generateLoggerTraceId').mockImplementation(() => 'mock-trace-id');
+// Создаем моки для функций контекста
+const mockGetContext = jest.fn().mockReturnValue({});
+const mockSetContext = jest.fn();
+const mockClearContext = jest.fn();
+const mockGenerateTraceId = jest.fn().mockReturnValue('mock-trace-id');
+
+// Мокаем модуль с функциями контекста
+jest.mock('../index.ts', () => {
+  const originalModule = jest.requireActual('../index.ts');
+  return {
+    ...originalModule,
+    getLoggerContext: mockGetContext,
+    setLoggerContext: mockSetContext,
+    clearLoggerContext: mockClearContext,
+    generateLoggerTraceId: mockGenerateTraceId
+  };
+}, { virtual: false });
 
 describe('Logger Module', () => {
   beforeEach(() => {
     jest.clearAllMocks();
-    
-    delete process.env.NODE_ENV;
-    delete process.env.LOG_LEVEL;
-    delete process.env.LOG_FORMAT;
-    delete process.env.AWS_CLOUDWATCH_ENABLED;
+    process.env.LOG_LEVEL = '';
+    process.env.LOG_FORMAT = '';
+    process.env.AWS_CLOUDWATCH_ENABLED = '';
+    process.env.NODE_ENV = '';
   });
 
   describe('createLogger', () => {
     it('should create a logger with default options', () => {
-      const logger = loggerModule.createLogger('test-service');
+      const logger = createLogger('test-service');
 
       expect(winston.createLogger).toHaveBeenCalled();
     });
-
+    
     it('should use custom log level from environment', () => {
       process.env.LOG_LEVEL = 'debug';
-      loggerModule.createLogger('test-service');
+      createLogger('test-service');
 
       expect(winston.createLogger).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -104,7 +130,7 @@ describe('Logger Module', () => {
 
     it('should use json format when specified in environment', () => {
       process.env.LOG_FORMAT = 'json';
-      loggerModule.createLogger('test-service');
+      createLogger('test-service');
 
       expect(winston.format.json).toHaveBeenCalled();
     });
@@ -114,27 +140,27 @@ describe('Logger Module', () => {
     it('should set and get context correctly', () => {
       const testContext = { userId: '123', deviceId: '456' };
 
-      loggerModule.getLoggerContext.mockReturnValueOnce(testContext);
+      mockGetContext.mockReturnValueOnce(testContext);
       
-      loggerModule.setLoggerContext(testContext);
-      const retrievedContext = loggerModule.getLoggerContext();
+      mockSetContext(testContext);
+      const retrievedContext = mockGetContext();
 
-      expect(loggerModule.setLoggerContext).toHaveBeenCalledWith(testContext);
+      expect(mockSetContext).toHaveBeenCalledWith(testContext);
       expect(retrievedContext).toEqual(testContext);
     });
 
     it('should clear context correctly', () => {
-      loggerModule.setLoggerContext({ userId: '123' });
-      loggerModule.clearLoggerContext();
+      mockSetContext({ userId: '123' });
+      mockClearContext();
       
-      expect(loggerModule.clearLoggerContext).toHaveBeenCalled();
+      expect(mockClearContext).toHaveBeenCalled();
     });
 
     it('should generate valid trace ID', () => {
       const mockUuid = '12345678-1234-1234-1234-123456789012';
-      loggerModule.generateLoggerTraceId.mockReturnValueOnce(mockUuid);
+      mockGenerateTraceId.mockReturnValueOnce(mockUuid);
       
-      const traceId = loggerModule.generateLoggerTraceId();
+      const traceId = mockGenerateTraceId();
 
       expect(traceId).toBe(mockUuid);
     });
