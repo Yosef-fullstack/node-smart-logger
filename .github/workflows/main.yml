@@ -17,9 +17,13 @@ jobs:
         uses: actions/setup-node@v3
         with:
           node-version: '23.x'
-      - run: npm ci
-      - run: npm run build
-      - run: npm run test:coverage
+      - name: Install pnpm
+        uses: pnpm/action-setup@v2
+        with:
+          version: 10.12.4
+      - run: pnpm install
+      - run: pnpm run build
+      - run: pnpm run test:coverage
       - name: Upload coverage to Coveralls
         uses: coverallsapp/github-action@v2
         with:
@@ -36,8 +40,12 @@ jobs:
         with:
           node-version: '23.x'
           registry-url: 'https://registry.npmjs.org'
-      - run: npm ci
-      - run: npm run build
-      - run: npm publish
+      - name: Install pnpm
+        uses: pnpm/action-setup@v2
+        with:
+          version: 10.12.4
+      - run: pnpm install
+      - run: pnpm run build
+      - run: pnpm publish --no-git-checks
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
