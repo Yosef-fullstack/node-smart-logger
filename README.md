@@ -1,3 +1,13 @@
+# Node Smart Logger
+
+[![npm version](https://img.shields.io/npm/v/node-smart-logger.svg)](https://www.npmjs.com/package/node-smart-logger)
+[![Downloads](https://img.shields.io/npm/dm/node-smart-logger.svg)](https://www.npmjs.com/package/node-smart-logger)
+[![Build Status](https://github.com/yourusername/node-smart-logger/actions/workflows/main.yml/badge.svg)](https://github.com/yourusername/node-smart-logger/actions)
+[![Coverage Status](https://coveralls.io/repos/github/yourusername/node-smart-logger/badge.svg?branch=main)](https://coveralls.io/github/yourusername/node-smart-logger?branch=main)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+
+Universal logging module with advanced features, including structured JSON logging, AWS CloudWatch Logs integration, and contextual logging.
+
 # IoTMonSys Logger Module
 
 A universal logging module for the IoTMonSys project with advanced features, including structured logging in JSON format, integration with AWS CloudWatch Logs, and contextual logging.
@@ -15,15 +25,17 @@ A universal logging module for the IoTMonSys project with advanced features, inc
 - Error handling middleware
 - Compatible with both ESM and CommonJS modules (import/require)
 
-## Setup
+## Installation
 
 ```bash
-# In project root directory
-yarn install
+# Using npm
+npm install node-smart-logger
 
-# Or setup just this module
-cd logger-node
-yarn install
+# Using yarn
+yarn add node-smart-logger
+
+# Using pnpm
+pnpm add node-smart-logger
 ```
 
 ## Usage
@@ -31,7 +43,7 @@ yarn install
 ### Basic usage
 
 ```javascript
-import { createLogger } from '@iotmonsys/logger-node';
+import { createLogger } from 'node-smart-logger';
 
 // Create a logger instance with a service name and log file path. 
 const logger = createLogger('my-service', './logs');
@@ -47,7 +59,7 @@ logger.alert('Critical alert');
 ### Contextual logging
 
 ```javascript
-import { createLogger, setLoggerContext, clearLoggerContext, generateLoggerTraceId } from '@iotmonsys/logger-node';
+import { createLogger, setLoggerContext, clearLoggerContext, generateLoggerTraceId } from 'node-smart-logger';
 
 const logger = createLogger('my-service', './logs');
 
@@ -65,7 +77,7 @@ clearLoggerContext();
 Additional examples for contextual logging.
 
 ```javascript
-const { createLogger, setLoggerContext, clearLoggerContext } = require('@iotmonsys/logger-node');
+const { createLogger, setLoggerContext, clearLoggerContext } = require('node-smart-logger');
 
 const logger = createLogger('my-service', './logs');
 
@@ -93,7 +105,7 @@ function processDevice(deviceId, data) {
 Or a more convenient way using ```withOperationContext``` method.
 
 ```javascript
-const { createLogger } = require('@iotmonsys/logger-node');
+const { createLogger } = require('node-smart-logger');
 
 const logger = createLogger('my-service', './logs');
 
@@ -114,7 +126,7 @@ function processDevice(deviceId, data) {
 
 ```javascript
 import express from 'express';
-import { createLogger, createHttpLogger, createErrorLogger } from '@iotmonsys/logger-node';
+import { createLogger, createHttpLogger, createErrorLogger } from 'node-smart-logger';
 
 const app = express();
 const logger = createLogger('api-service', './logs');
@@ -205,6 +217,52 @@ Machine-readable format, ideal for production and CloudWatch integration:
 ```
 
 > **Important**: CloudWatch logs are always sent in JSON format regardless of the `LOG_FORMAT` setting to ensure proper parsing and analysis in AWS CloudWatch.
+
+## Testing
+
+The project uses Jest for testing. Tests are located in the `src/__tests__` directory.
+
+### Running Tests
+
+```bash
+# Run all tests
+npm test
+
+# Run tests with coverage
+npm test -- --coverage
+```
+
+### Test Structure
+
+The tests are structured to validate:
+- Core logger functionality
+- Context management
+- HTTP middleware
+- Error handling middleware
+
+### Mocking Dependencies
+
+When writing tests for code that uses this logger, you may need to mock it. Here's an example:
+
+```javascript
+// Mock the logger module
+jest.mock('node-smart-logger', () => {
+  return {
+    createLogger: jest.fn().mockReturnValue({
+      info: jest.fn(),
+      error: jest.fn(),
+      warn: jest.fn(),
+      debug: jest.fn(),
+      setContext: jest.fn(),
+      getContext: jest.fn(),
+      clearContext: jest.fn(),
+      generateTraceId: jest.fn()
+    }),
+    createHttpLogger: jest.fn().mockReturnValue((req, res, next) => next()),
+    createErrorLogger: jest.fn().mockReturnValue((err, req, res, next) => next(err))
+  };
+});
+```
 
 ## Settings
 

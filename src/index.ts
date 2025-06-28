@@ -7,9 +7,7 @@ import 'winston-cloudwatch';
 import { v4 as uuidv4 } from 'uuid';
 import { Request, Response, NextFunction } from 'express';
 
-console.log('--- LOGGER-NODE MODULE LOADED ---');
-
-// Типы для CloudWatch транспорта
+// Types (interface) for CloudWatch transport
 interface CloudWatchTransportOptions {
     logGroupName: string;
     logStreamName: string;
@@ -18,7 +16,7 @@ interface CloudWatchTransportOptions {
     format?: winston.Logform.Format;
 }
 
-// Типы для контекста логгера
+// Types (interface) for logger context
 interface LoggerContext {
     traceId?: string;
     requestId?: string;
@@ -28,7 +26,7 @@ interface LoggerContext {
     [key: string]: any;
 }
 
-// Расширение интерфейса winston.Logger
+// Interface extension for winston.Logger
 interface ExtendedLogger extends winston.Logger {
     setContext: (context: LoggerContext) => void;
     getContext: () => LoggerContext;
@@ -37,15 +35,16 @@ interface ExtendedLogger extends winston.Logger {
     withOperationContext: (contextData?: LoggerContext) => string;
 }
 
-// Опции для создания логгера
+// Options (interface) for creation of the logger.
 interface LoggerOptions {
     [key: string]: any;
 }
 
-// Опции для HTTP логгера
+// Options (interface) for the HTTP logger middleware.
 interface HttpLoggerOptions {
     format?: string;
     logOnlyAuthErrors?: boolean;
+    skipLogging?: boolean;
 }
 
 // Creating a namespace for storing the logging context
@@ -310,6 +309,11 @@ function createHttpLoggerMiddleware(loggerInstance: ExtendedLogger, options: Htt
     const defaultFormat = env === 'development' ? 'dev' : 'combined';
     const format = options.format || defaultFormat;
     const logOnlyAuthErrors = options.logOnlyAuthErrors || false;
+    const skipLogging = options.skipLogging || false;
+
+    if (skipLogging) {
+        return (req: Request, res: Response, next: NextFunction) => next();
+    }
 
     // Creating middleware to add traceId and requestId to the request
     const traceMiddleware = (req: Request, res: Response, next: NextFunction): void => {
@@ -395,8 +399,8 @@ const loggerLibrary = {
     generateTraceId
 };
 
-export const createHttpLogger = loggerLibrary.createHttpLoggerMiddleware;
 export const createLogger = loggerLibrary.createLogger;
+export const createHttpLogger = loggerLibrary.createHttpLoggerMiddleware;
 export const createErrorLogger = loggerLibrary.createErrorLoggerMiddleware;
 export const getLoggerContext = loggerLibrary.getContext;
 export const setLoggerContext = loggerLibrary.setContext;

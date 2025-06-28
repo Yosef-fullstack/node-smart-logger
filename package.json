@@ -4,14 +4,14 @@
   "author": "Vitaly Yosef Trakhtenberg <vit.trakhtenberg@gmail.com>",
   "description": "Universal logger for Node.js applications with support for both ESM and CommonJS. It provides advanced features, such as structured logging in JSON format, integration with AWS CloudWatch Logs, and contextual logging.",
   "license": "MIT",
-  "type": "module",
-  "main": "dist/index.js",
-  "types": "dist/index.d.ts",
+  "main": "dist/cjs/index.js",
+  "module": "./dist/esm/index.js",
+  "types": "dist/esm/index.d.ts",
   "exports": {
     ".": {
-      "import": "./dist/index.js",
-      "require": "./dist/index.cjs",
-      "types": "./dist/index.d.ts"
+      "import": "./dist/esm/index.js",
+      "require": "./dist/cjs/index.cjs",
+      "types": "./dist/esm/index.d.ts"
     }
   },
   "dependencies": {
@@ -36,13 +36,24 @@
     "logger",
     "nodejs",
     "winston",
-    "typescript"
+    "typescript",
+    "cloudwatch",
+    "aws",
+    "middleware",
+    "express",
+    "contextual-logging",
+    "trace-id"
   ],
   "scripts": {
-    "build": "tsc",
-    "build:cjs": "tsc --module commonjs --outDir ./dist/cjs",
+    "build": "npm run build:esm && npm run build:cjs",
+    "build:esm": "tsc --outDir ./dist/esm",
+    "build:cjs": "tsc --module commonjs --moduleResolution Node --outDir ./dist/cjs",
     "test": "jest",
-    "prepublish": "npm run build && npm run build:cjs"
+    "test:coverage": "jest --coverage",
+    "lint": "eslint src --ext .ts",
+    "prepublishOnly": "npm run test && npm run build",
+    "prepack": "npm run build",
+    "prepare-release": "npm run test:coverage && npm run build && npm pack"
   },
   "packageManager": "pnpm@10.12.4+sha512.5ea8b0deed94ed68691c9bad4c955492705c5eeb8a87ef86bc62c74a26b037b08ff9570f108b2e4dbd1dd1a9186fea925e527f141c648e85af45631074680184"
 }

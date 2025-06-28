@@ -41,3 +41,8 @@ temp/
 .yarnrc
 .pnpmrc
 
+# Coverage reports
+coverage/
+
+# Package files
+*.tgz
