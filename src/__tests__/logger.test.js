@@ -5,45 +5,37 @@ jest.mock('winston-cloudwatch', () => {
   };
 }, { virtual: true });
 
-// Мокаем uuid для предсказуемого результата
 jest.mock('uuid', () => ({
   v4: jest.fn().mockReturnValue('mock-uuid')
 }));
 
-// Мокаем модуль path
 jest.mock('path', () => ({
   isAbsolute: jest.fn(path => {
-    // Функция isAbsolute должна проверять строковое значение пути
-    // Реальный код вызывает path.isAbsolute(customLogDir), где customLogDir это строка
+    // The function isAbsolute should check the string value of the path.
+    // Real code calls path.isAbsolute(customLogDir), where customLogDir is a string.
     return typeof path === 'string' && path.startsWith('/');
   }),
   resolve: jest.fn((cwd, dir) => `${cwd}/${dir}`),
   join: jest.fn((dir, file) => `${dir}/${file}`)
 }));
 
-// Мокаем модуль fs
 jest.mock('fs', () => ({
   existsSync: jest.fn().mockReturnValue(true),
   mkdirSync: jest.fn(),
 }));
 
-// Мокаем winston
 jest.mock('winston', () => {
-  // Создаем мок для форматтера
   const formatFn = jest.fn().mockImplementation((transform) => {
-    // Если transform - это функция, запоминаем её, чтобы иметь к ней доступ при тестировании
     if (typeof transform === 'function') {
       formatFn.transformFunctions = formatFn.transformFunctions || [];
       formatFn.transformFunctions.push(transform);
     }
-    
-    const formatterFn = jest.fn().mockReturnValue({
+
+    return jest.fn().mockReturnValue({
       transform: transform
     });
-    return formatterFn;
   });
 
-  // Добавляем методы к функции format
   formatFn.combine = jest.fn().mockReturnValue({ transform: jest.fn() });
   formatFn.timestamp = jest.fn().mockReturnValue({ transform: jest.fn() });
   formatFn.json = jest.fn().mockReturnValue({ transform: jest.fn() });
@@ -52,12 +44,10 @@ jest.mock('winston', () => {
   formatFn.colorize = jest.fn().mockReturnValue({ transform: jest.fn() });
   formatFn.simple = jest.fn().mockReturnValue({ transform: jest.fn() });
 
-  // Создаем мок для createLogger
   const createLoggerMock = jest.fn().mockImplementation((options = {}) => {
-    // Запоминаем все опции, переданные в createLogger
+    // Store the all last options passed to createLogger
     createLoggerMock.lastOptions = options;
     
-    // Создаем логгер с мок-методами
     const logger = {
       info: jest.fn(),
       error: jest.fn(),
@@ -89,7 +79,6 @@ jest.mock('winston', () => {
   };
 });
 
-// Импортируем модуль логгера и модули после моков
 const { createLogger } = require('../index.ts');
 const winston = require('winston');
 const path = require('path');
@@ -161,61 +150,48 @@ describe('Logger Module', () => {
     it('should use absolute path when provided in customLogDir', () => {
       const absolutePath = '/absolute/path/to/logs';
       
-      // Вызываем createLogger со вторым параметром customLogDir согласно сигнатуре
       createLogger('test-service', absolutePath);
       
-      // Проверяем, что path.isAbsolute был вызван с правильным аргументом
       expect(path.isAbsolute).toHaveBeenCalledWith(absolutePath);
       
-      // Проверяем, что winston.transports.File был вызван
       expect(winston.transports.File).toHaveBeenCalled();
     });
 
     it('should resolve relative path when provided in customLogDir', () => {
       const relativePath = 'relative/path/to/logs';
       
-      // Мокаем process.cwd()
       const cwdSpy = jest.spyOn(process, 'cwd').mockReturnValue('/current/dir');
       
-      // Вызываем createLogger со вторым параметром customLogDir согласно сигнатуре
       createLogger('test-service', relativePath);
       
-      // Проверяем, что path.isAbsolute был вызван с правильным аргументом
       expect(path.isAbsolute).toHaveBeenCalledWith(relativePath);
       
-      // Проверяем, что winston.transports.File был вызван
       expect(winston.transports.File).toHaveBeenCalled();
       
-      // Восстанавливаем оригинальную функцию
       cwdSpy.mockRestore();
     });
 
     it('should pass options to the third parameter', () => {
       const options = { customOption: 'value' };
       
-      // Вызываем createLogger с третьим параметром options согласно сигнатуре
       createLogger('test-service', null, options);
       
-      // Проверяем, что winston.createLogger был вызван
       expect(winston.createLogger).toHaveBeenCalled();
     });
   });
 
   describe('Service Name', () => {
     it('should use default service name when not provided', () => {
-      // Для этого теста разрешаем вывод предупреждений
+      // For this test, we allow warnings to be displayed.
       jest.restoreAllMocks();
       
-      // Шпионим за console.warn, чтобы проверить, что предупреждение выводится
       const consoleWarnSpy = jest.spyOn(console, 'warn');
       
-      // Вызываем createLogger без имени сервиса (пустая строка)
       createLogger('');
       
-      // Проверяем, что console.warn был вызван с правильным сообщением
       expect(consoleWarnSpy).toHaveBeenCalledWith('Logger service name not provided, using "default".');
       
-      // Снова подавляем console.warn чтобы не засорять вывод других тестов
+      // Suppress console.warn again so as not to clutter up the output of other tests.
       consoleWarnSpy.mockImplementation(() => {});
     });
   });
@@ -224,22 +200,16 @@ describe('Logger Module', () => {
     it('should set and get context correctly', () => {
       const testContext = { userId: '123', deviceId: '456' };
       
-      // Создаем логгер
       const logger = createLogger('test-service');
       
-      // Мокируем getContext, чтобы он возвращал testContext
       jest.spyOn(logger, 'getContext').mockReturnValue(testContext);
       
-      // Используем jest.spyOn для создания шпиона за методом setContext
       const setContextSpy = jest.spyOn(logger, 'setContext');
       
-      // Устанавливаем контекст
       logger.setContext(testContext);
       
-      // Проверяем, что setContext был вызван с правильными аргументами
       expect(setContextSpy).toHaveBeenCalledWith(testContext);
       
-      // Проверяем, что getContext возвращает установленный контекст
       const returnedContext = logger.getContext();
       expect(returnedContext).toEqual(testContext);
     });
@@ -247,45 +217,34 @@ describe('Logger Module', () => {
     it('should clear context correctly', () => {
       const testContext = { userId: '123', deviceId: '456' };
       
-      // Создаем логгер
       const logger = createLogger('test-service');
       
-      // Устанавливаем контекст перед проверкой очистки
       logger.setContext(testContext);
       
-      // Мокируем getContext для возврата пустого объекта после очистки
       const getContextSpy = jest.spyOn(logger, 'getContext').mockReturnValue({});
       
-      // Используем jest.spyOn для создания шпиона за методом clearContext
       const clearContextSpy = jest.spyOn(logger, 'clearContext');
       
-      // Очищаем контекст
       logger.clearContext();
       
-      // Проверяем, что clearContext был вызван
       expect(clearContextSpy).toHaveBeenCalled();
       
-      // Проверяем, что после очистки getContext возвращает пустой объект
       const emptyContext = logger.getContext();
       expect(emptyContext).toEqual({});
     });
 
     it('should generate trace ID correctly', () => {
-      // Создаем логгер
       const logger = createLogger('test-service');
       
-      // Используем jest.spyOn для создания шпиона за методом generateTraceId
       const generateTraceIdSpy = jest.spyOn(logger, 'generateTraceId');
       
-      // Генерируем trace ID
       const traceId = logger.generateTraceId();
       
-      // Проверяем, что generateTraceId был вызван и вернул ожидаемый результат
       expect(generateTraceIdSpy).toHaveBeenCalled();
       expect(traceId).toBe('mock-uuid');
       
-      // Проверяем, что traceId также доступен в методах логгера
-      // Это проверяет правильную интеграцию traceId с контекстом логгера
+      // Verify that traceId is also available in logger methods
+      // This checks that traceId is correctly integrated with the logger context.
       const withOperationSpy = jest.spyOn(logger, 'withOperationContext');
       logger.withOperationContext({ operationId: traceId });
       expect(withOperationSpy).toHaveBeenCalledWith({ operationId: traceId });

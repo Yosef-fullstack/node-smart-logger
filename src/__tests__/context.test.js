@@ -3,14 +3,12 @@ const { generateLoggerTraceId, setLoggerContext, getLoggerContext, clearLoggerCo
 
 describe('Context functions', () => {
     afterEach(() => {
-        // Очищаем контекст после каждого теста
         clearLoggerContext();
     });
 
     test('generateLoggerTraceId should return a valid UUID', () => {
         const traceId = generateLoggerTraceId();
         expect(typeof traceId).toBe('string');
-        // Проверка формата UUID (простая проверка на длину и наличие дефисов)
         expect(traceId).toMatch(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/);
     });
 

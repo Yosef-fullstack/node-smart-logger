@@ -57,7 +57,6 @@ jest.mock('winston', () => {
       debug: jest.fn(),
       http: jest.fn(),
       log: jest.fn(),
-      // Добавляем методы контекста
       getContext: jest.fn().mockReturnValue({}),
       setContext: jest.fn(),
       clearContext: jest.fn(),
@@ -89,7 +88,6 @@ jest.mock('morgan', () => {
 
 const winston = require('winston');
 const morgan = require('morgan');
-// Используем require вместо import для модуля
 const { createHttpLogger, createErrorLogger } = require('../index.ts');
 
 describe('HTTP Logger Middleware', () => {
@@ -209,10 +207,8 @@ describe('HTTP Middleware', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     
-    // Сбрасываем переменные окружения
     process.env.NODE_ENV = '';
     
-    // Создаем моки для логгера и HTTP запроса/ответа
     mockLogger = {
       info: jest.fn(),
       error: jest.fn(),
@@ -255,20 +251,15 @@ describe('HTTP Middleware', () => {
       
       expect(middleware).toBeInstanceOf(Function);
       
-      // Вызываем middleware
       middleware(mockReq, mockRes, mockNext);
       
-      // Проверяем, что заголовки были установлены
       expect(mockRes.setHeader).toHaveBeenCalledWith('X-Trace-ID', expect.any(String));
       expect(mockRes.setHeader).toHaveBeenCalledWith('X-Request-ID', expect.any(String));
       
-      // Проверяем, что контекст был установлен
       expect(mockLogger.setContext).toHaveBeenCalled();
       
-      // Проверяем, что morgan был вызван
       expect(morgan).toHaveBeenCalled();
       
-      // Проверяем, что next был вызван
       expect(mockNext).toHaveBeenCalled();
     });
     
@@ -297,10 +288,8 @@ describe('HTTP Middleware', () => {
       const middleware = createHttpLogger(mockLogger);
       middleware(mockReq, mockRes, mockNext);
       
-      // Проверяем, что обработчик события 'finish' был добавлен
       expect(mockRes.on).toHaveBeenCalledWith('finish', expect.any(Function));
       
-      // Проверяем, что clearContext был вызван (так как мы мокаем событие finish)
       expect(mockLogger.clearContext).toHaveBeenCalled();
     });
     
@@ -308,7 +297,6 @@ describe('HTTP Middleware', () => {
       const middleware = createHttpLogger(mockLogger, { skipLogging: true });
       middleware(mockReq, mockRes, mockNext);
       
-      // Проверяем, что next был вызван, но morgan не был вызван
       expect(mockNext).toHaveBeenCalled();
       expect(morgan).not.toHaveBeenCalled();
     });
@@ -319,7 +307,6 @@ describe('HTTP Middleware', () => {
       const middleware = createHttpLogger(mockLogger, { logOnlyAuthErrors: true });
       middleware(mockReq, mockRes, mockNext);
       
-      // Проверяем, что morgan был вызван с опцией skip
       expect(morgan).toHaveBeenCalledWith(
         expect.any(String),
         expect.objectContaining({
@@ -327,13 +314,10 @@ describe('HTTP Middleware', () => {
         })
       );
       
-      // Проверяем работу функции skip
       const options = morgan.mock.calls[0][1];
       
-      // Для обычных статусов должен пропускать логирование
       expect(options.skip(mockReq, { statusCode: 200 })).toBe(true);
       
-      // Для 401 и 403 не должен пропускать
       expect(options.skip(mockReq, { statusCode: 401 })).toBe(false);
       expect(options.skip(mockReq, { statusCode: 403 })).toBe(false);
     });
@@ -343,12 +327,10 @@ describe('HTTP Middleware', () => {
       
       const middleware = createHttpLogger(mockLogger, { logOnlyAuthErrors: true });
       
-      // В этом случае middleware должен просто вызывать next
       expect(middleware).toBeInstanceOf(Function);
       
       middleware(mockReq, mockRes, mockNext);
       
-      // Проверяем, что next был вызван, но morgan не был вызван
       expect(mockNext).toHaveBeenCalled();
       expect(morgan).not.toHaveBeenCalled();
     });
@@ -357,7 +339,6 @@ describe('HTTP Middleware', () => {
       const middleware = createHttpLogger(mockLogger, { format: 'tiny' });
       middleware(mockReq, mockRes, mockNext);
       
-      // Проверяем, что morgan был вызван с форматом 'tiny'
       expect(morgan).toHaveBeenCalledWith('tiny', expect.any(Object));
     });
   });
@@ -368,13 +349,10 @@ describe('HTTP Middleware', () => {
       
       expect(middleware).toBeInstanceOf(Function);
       
-      // Создаем тестовую ошибку
       const error = new Error('Test error');
       
-      // Вызываем middleware
       middleware(error, mockReq, mockRes, mockNext);
       
-      // Проверяем, что ошибка была залогирована
       expect(mockLogger.error).toHaveBeenCalledWith(
         expect.stringContaining('Test error'),
         expect.objectContaining({
@@ -387,12 +365,10 @@ describe('HTTP Middleware', () => {
         })
       );
       
-      // Проверяем, что next был вызван с ошибкой
       expect(mockNext).toHaveBeenCalledWith(error);
     });
     
     it('should include trace and request IDs in error log when available', () => {
-      // Устанавливаем контекст с traceId и requestId
       mockLogger.getContext.mockReturnValue({
         traceId: 'test-trace-id',
         requestId: 'test-request-id'
@@ -403,7 +379,6 @@ describe('HTTP Middleware', () => {
       
       middleware(error, mockReq, mockRes, mockNext);
       
-      // Проверяем, что ошибка была залогирована с traceId и requestId
       expect(mockLogger.error).toHaveBeenCalledWith(
         expect.any(String),
         expect.objectContaining({
