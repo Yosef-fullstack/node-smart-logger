@@ -274,3 +274,4 @@ jest.mock('@vitaly-yosef/node-smart-logger', () => {
 | AWS_REGION | Регион AWS | - |
 | AWS_ACCESS_KEY_ID | ID ключа доступа AWS | - |
 | AWS_SECRET_ACCESS_KEY | Секретный ключ доступа AWS | - |
+ 

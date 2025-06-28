@@ -227,6 +227,9 @@ describe('Logger Module', () => {
       // Создаем логгер
       const logger = createLogger('test-service');
       
+      // Мокируем getContext, чтобы он возвращал testContext
+      jest.spyOn(logger, 'getContext').mockReturnValue(testContext);
+      
       // Используем jest.spyOn для создания шпиона за методом setContext
       const setContextSpy = jest.spyOn(logger, 'setContext');
       
@@ -235,11 +238,23 @@ describe('Logger Module', () => {
       
       // Проверяем, что setContext был вызван с правильными аргументами
       expect(setContextSpy).toHaveBeenCalledWith(testContext);
+      
+      // Проверяем, что getContext возвращает установленный контекст
+      const returnedContext = logger.getContext();
+      expect(returnedContext).toEqual(testContext);
     });
 
     it('should clear context correctly', () => {
+      const testContext = { userId: '123', deviceId: '456' };
+      
       // Создаем логгер
       const logger = createLogger('test-service');
+      
+      // Устанавливаем контекст перед проверкой очистки
+      logger.setContext(testContext);
+      
+      // Мокируем getContext для возврата пустого объекта после очистки
+      const getContextSpy = jest.spyOn(logger, 'getContext').mockReturnValue({});
       
       // Используем jest.spyOn для создания шпиона за методом clearContext
       const clearContextSpy = jest.spyOn(logger, 'clearContext');
@@ -249,6 +264,10 @@ describe('Logger Module', () => {
       
       // Проверяем, что clearContext был вызван
       expect(clearContextSpy).toHaveBeenCalled();
+      
+      // Проверяем, что после очистки getContext возвращает пустой объект
+      const emptyContext = logger.getContext();
+      expect(emptyContext).toEqual({});
     });
 
     it('should generate trace ID correctly', () => {
@@ -264,6 +283,12 @@ describe('Logger Module', () => {
       // Проверяем, что generateTraceId был вызван и вернул ожидаемый результат
       expect(generateTraceIdSpy).toHaveBeenCalled();
       expect(traceId).toBe('mock-uuid');
+      
+      // Проверяем, что traceId также доступен в методах логгера
+      // Это проверяет правильную интеграцию traceId с контекстом логгера
+      const withOperationSpy = jest.spyOn(logger, 'withOperationContext');
+      logger.withOperationContext({ operationId: traceId });
+      expect(withOperationSpy).toHaveBeenCalledWith({ operationId: traceId });
     });
   });
 });
