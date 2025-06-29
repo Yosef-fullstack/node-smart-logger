@@ -6,7 +6,7 @@
 [![Coverage Status](https://coveralls.io/repos/github/Yosef-fullstack/node-smart-logger/badge.svg?branch=master)](https://coveralls.io/github/Yosef-fullstack/node-smart-logger?branch=master)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-Универсальный модуль логирования с расширенными функциями, включая структурированное логирование в формате JSON, интеграцию с AWS CloudWatch Logs и контекстное логирование.
+Универсальный модуль логирования с расширенными функциями, включая структурированное логирование в формате JSON, интеграцию с AWS CloudWatch Logs и контекстное логирование. Его можно использовать как для ESM, так и для CommonJS.
 
 ## Возможности
 

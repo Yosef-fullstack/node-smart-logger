@@ -8,9 +8,9 @@
 
 Universal logging module with advanced features, including structured JSON logging, AWS CloudWatch Logs integration, and contextual logging.
 
-# IoTMonSys Logger Module
+# Node Smart Logger
 
-A universal logging module for the IoTMonSys project with advanced features, including structured logging in JSON format, integration with AWS CloudWatch Logs, and contextual logging.
+A universal logger (initially created as a module for one of my project) with advanced features, including structured logging in JSON format, integration with AWS CloudWatch Logs, and contextual logging. It can be used as for ESM projects, also as for CommonJS projects.
 
 ## Features
 
