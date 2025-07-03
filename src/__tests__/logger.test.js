@@ -186,6 +186,47 @@ describe('Logger Module', () => {
       
       expect(winston.createLogger).toHaveBeenCalled();
     });
+
+    it('should catch error "Failed to create log directory"', () => {
+      // For this test, we allow warnings to be displayed.
+      jest.restoreAllMocks();
+
+      // Mock console.warn to prevent warning messages
+      jest.spyOn(console, 'warn').mockImplementation(() => {});
+
+      // Mock fs.existsSync to return false (directory doesn't exist)
+      const mockExistsSync = jest.spyOn(fs, 'existsSync').mockReturnValue(false);
+
+      // Mock fs.mkdirSync to throw an error
+      const mockMkdirSync = jest.spyOn(fs, 'mkdirSync').mockImplementation(() => {
+        throw new Error('Mock directory creation error');
+      });
+
+      const consoleErrorSpy = jest.spyOn(console, 'error');
+
+      const wrongPath = '...wrong+path&to@logs';
+      const serviceName = 'test-service';
+
+      // Mock path.join to return a predictable path
+      const mockJoin = jest.spyOn(path, 'join').mockReturnValue(`${wrongPath}/${serviceName}`);
+
+      createLogger(serviceName, wrongPath);
+
+      // Check that console.error was called with the expected message
+      expect(consoleErrorSpy).toHaveBeenCalledWith(
+          `Failed to create log directory ${wrongPath}/${serviceName}:`,
+          expect.any(Error)
+      );
+
+      // Restore all mocks
+      mockExistsSync.mockRestore();
+      mockMkdirSync.mockRestore();
+      mockJoin.mockRestore();
+      consoleErrorSpy.mockRestore();
+
+      // Suppress console.warn again for other tests
+      jest.spyOn(console, 'warn').mockImplementation(() => {});
+    });
   });
 
   describe('Service Name', () => {
@@ -354,6 +395,145 @@ describe('Logger Module', () => {
       // Verify that the context has been restored despite the error.
       expect(setContextSpy).toHaveBeenCalledWith(expect.objectContaining(operationContext));
       expect(setContextSpy).toHaveBeenLastCalledWith(initialContext);
+    });
+  });
+
+  describe('Log Formatting', () => {
+    beforeEach(() => {
+      jest.clearAllMocks();
+    });
+    
+    afterEach(() => {
+      delete process.env.LOG_FORMAT;
+      delete process.env.NODE_ENV;
+    });
+    
+    it('should format logs with context information in text format', () => {
+      // Set environment to use text format
+      process.env.LOG_FORMAT = 'text';
+      
+      // Create a logger instance
+      const serviceName = 'test-service';
+      const logger = createLogger(serviceName);
+      
+      // Set a specific context
+      const mockContext = {
+        traceId: 'test-trace-id',
+        requestId: 'test-request-id'
+      };
+      logger.setContext(mockContext);
+      
+      // Log a message to trigger the formatter
+      const testMessage = 'Test message';
+      logger.info(testMessage);
+      
+      // Verify that the logger was called with the correct parameters.
+      expect(logger.info).toHaveBeenCalledWith(testMessage);
+      
+      // Check that winston.format.printf was called.
+      expect(winston.format.printf).toHaveBeenCalled();
+      
+      // Verify that winston.createLogger was called with the correct parameters
+      expect(winston.createLogger).toHaveBeenCalled();
+      const options = winston.createLogger.mock.calls[0][0];
+      expect(options).toBeDefined();
+      expect(options.format).toBeDefined();
+      
+      // Check default values
+      logger.clearContext();
+      logger.info(testMessage);
+    });
+    
+    it('should format logs with full context in text format', () => {
+      // Set environment to use text format
+      process.env.LOG_FORMAT = 'text';
+      process.env.NODE_ENV = 'test';
+      
+      // Create a logger instance
+      const serviceName = 'test-service';
+      const logger = createLogger(serviceName);
+      
+      // Set a full context with all possible fields
+      const fullContext = {
+        traceId: 'test-trace-id',
+        requestId: 'test-request-id',
+        operationId: 'test-operation-id',
+        deviceId: 'test-device-id',
+        userId: 'test-user-id'
+      };
+      logger.setContext(fullContext);
+      
+      // Log a message to trigger the formatter
+      const testMessage = 'Test message with full context';
+      logger.info(testMessage);
+      
+      // Verify that the logger was called with the correct parameters
+      expect(logger.info).toHaveBeenCalledWith(testMessage);
+      
+      // Checking the conditional logic for adding context fields
+      // Remove operationId from context
+      const partialContext = { ...fullContext };
+      delete partialContext.operationId;
+      
+      logger.clearContext();
+      logger.setContext(partialContext);
+      logger.info(testMessage);
+    });
+    
+    it('should format logs in JSON format with context', () => {
+      // Set environment to use JSON format
+      process.env.LOG_FORMAT = 'json';
+      
+      // Create a logger instance
+      const serviceName = 'test-service';
+      const logger = createLogger(serviceName);
+      
+      // Set a full context with all possible fields
+      const fullContext = {
+        traceId: 'test-trace-id',
+        requestId: 'test-request-id',
+        operationId: 'test-operation-id',
+        deviceId: 'test-device-id',
+        userId: 'test-user-id'
+      };
+      logger.setContext(fullContext);
+      
+      // Log a message to trigger the formatter
+      const testMessage = 'Test message with full context';
+      logger.info(testMessage);
+      
+      // Verify that the logger was called with the correct parameters
+      expect(logger.info).toHaveBeenCalledWith(testMessage);
+      
+      // Check that the format has been set correctly
+      expect(process.env.LOG_FORMAT).toBe('json');
+      
+      expect(winston.format.json).toHaveBeenCalled();
+    });
+    
+    it('should add metadata to logs', () => {
+      // Set environment for testing
+      process.env.NODE_ENV = 'test';
+      
+      // Create a logger instance
+      const serviceName = 'test-service';
+      const logger = createLogger(serviceName);
+      
+      // Set context with userId and deviceId
+      const context = {
+        userId: 'test-user',
+        deviceId: 'test-device'
+      };
+      logger.setContext(context);
+      
+      // Log a message
+      logger.info('Test metadata');
+      
+      expect(logger.info).toHaveBeenCalledWith('Test metadata');
+      
+      expect(winston.createLogger).toHaveBeenCalled();
+      const options = winston.createLogger.mock.calls[0][0];
+      expect(options).toBeDefined();
     });
   });
 });

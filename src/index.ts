@@ -288,7 +288,7 @@ function createLoggerFunction(service: string, customLogDir: string | null = nul
     logger.generateTraceId = generateTraceId;
 
     // Adding a convenient method for creating an operational context
-    logger.withOperationContext = function(contextData: LoggerContext = {}, callback?: () => any): string {
+    logger.withOperationContext = function(contextData: LoggerContext = {}, callback?: () => any): any {
         const operationId = contextData.operationId || uuidv4();
         const previousContext = getContext();
         setContext({ ...contextData, operationId });
