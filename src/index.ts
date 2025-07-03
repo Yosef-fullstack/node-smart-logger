@@ -32,7 +32,7 @@ interface ExtendedLogger extends winston.Logger {
     getContext: () => LoggerContext;
     clearContext: () => void;
     generateTraceId: () => string;
-    withOperationContext: (contextData?: LoggerContext) => string;
+    withOperationContext: (contextData?: LoggerContext, callback?: () => void) => string;
 }
 
 // Options (interface) for creation of the logger.
@@ -288,9 +288,20 @@ function createLoggerFunction(service: string, customLogDir: string | null = nul
     logger.generateTraceId = generateTraceId;
 
     // Adding a convenient method for creating an operational context
-    logger.withOperationContext = function(contextData: LoggerContext = {}): string {
+    logger.withOperationContext = function(contextData: LoggerContext = {}, callback?: () => void): string {
         const operationId = contextData.operationId || uuidv4();
+        const previousContext = getContext();
         setContext({ ...contextData, operationId });
+        
+        if (callback) {
+            try {
+                callback();
+            } finally {
+                // Restore the previous context after callback execution
+                setContext(previousContext);
+            }
+        }
+        
         return operationId;
     };
 
