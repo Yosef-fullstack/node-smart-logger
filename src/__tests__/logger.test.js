@@ -59,7 +59,15 @@ jest.mock('winston', () => {
       setContext: jest.fn(),
       clearContext: jest.fn(),
       generateTraceId: jest.fn().mockReturnValue('mock-uuid'),
-      withOperationContext: jest.fn().mockImplementation(data => {
+      withOperationContext: jest.fn().mockImplementation((data, callback) => {
+        const previousContext = {};
+        if (callback) {
+          try {
+            callback();
+          } finally {
+            logger.setContext(previousContext);
+          }
+        }
         return data?.operationId || 'mock-uuid';
       })
     };
@@ -94,7 +102,7 @@ describe('Logger Module', () => {
     process.env.AWS_CLOUDWATCH_STREAM = '';
     process.env.NODE_ENV = '';
     
-    // Подавляем вывод console.warn для чистоты тестов
+    // Suppress console.warn output for test cleanliness
     jest.spyOn(console, 'warn').mockImplementation(() => {});
   });
 
@@ -127,13 +135,13 @@ describe('Logger Module', () => {
         }
       };
       
-      // Вызываем createLogger с всеми тремя параметрами согласно сигнатуре
+      // Call createLogger with all three parameters according to the signature
       const logger = createLogger(service, customLogDir, options);
       
-      // Проверяем, что path.isAbsolute вызван с customLogDir
+      // Check that path.isAbsolute is called with customLogDir
       expect(path.isAbsolute).toHaveBeenCalledWith(customLogDir);
       
-      // Проверяем, что логгер имеет все необходимые методы
+      // Verify that the logger has all the necessary methods.
       expect(logger).toHaveProperty('setContext');
       expect(logger).toHaveProperty('getContext');
       expect(logger).toHaveProperty('clearContext');
@@ -248,6 +256,104 @@ describe('Logger Module', () => {
       const withOperationSpy = jest.spyOn(logger, 'withOperationContext');
       logger.withOperationContext({ operationId: traceId });
       expect(withOperationSpy).toHaveBeenCalledWith({ operationId: traceId });
+    });
+
+    it('should execute callback function when provided to withOperationContext', () => {
+      const logger = createLogger('test-service');
+      const callbackMock = jest.fn();
+      
+      const withOperationSpy = jest.spyOn(logger, 'withOperationContext');
+      const operationId = logger.withOperationContext({ traceId: 'test-trace' }, callbackMock);
+      
+      expect(withOperationSpy).toHaveBeenCalledWith({ traceId: 'test-trace' }, callbackMock);
+      expect(callbackMock).toHaveBeenCalled();
+      expect(operationId).toBe('mock-uuid');
+    });
+    
+    it('should preserve and restore context when using withOperationContext with callback', () => {
+      const logger = createLogger('test-service');
+      const initialContext = { userId: 'initial-user' };
+      const operationContext = { traceId: 'operation-trace' };
+      const operationIdWithContext = { ...operationContext, operationId: 'mock-uuid' };
+      
+      // Override the implementation of getContext and setContext for this test.
+      logger.getContext = jest.fn().mockReturnValue(initialContext);
+      logger.setContext = jest.fn();
+      
+      // Override the implementation of withOperationContext for this test
+      logger.withOperationContext = jest.fn().mockImplementation((data, callback) => {
+        const prevContext = logger.getContext();
+        logger.setContext({ ...data, operationId: 'mock-uuid' });
+        
+        if (callback) {
+          try {
+            callback();
+          } finally {
+            logger.setContext(prevContext);
+          }
+        }
+        
+        return 'mock-uuid';
+      });
+      
+      // Create a spy to track calls setContext
+      const setContextSpy = jest.spyOn(logger, 'setContext');
+      
+      // Perform the method with callback
+      logger.withOperationContext(operationContext, () => {
+        // nothing to do here.
+      });
+      
+      // Check if setContext was called with the correct parameters
+      expect(setContextSpy).toHaveBeenCalledWith(expect.objectContaining(operationContext));
+      expect(setContextSpy).toHaveBeenLastCalledWith(initialContext);
+    });
+    
+    it('should handle errors in callback and still restore context', () => {
+      const logger = createLogger('test-service');
+      const initialContext = { userId: 'initial-user' };
+      const operationContext = { traceId: 'operation-trace' };
+      const operationIdWithContext = { ...operationContext, operationId: 'mock-uuid' };
+      
+      // Override the implementation of getContext and setContext for this test
+      logger.getContext = jest.fn().mockReturnValue(initialContext);
+      logger.setContext = jest.fn();
+      
+      // Override the implementation of withOperationContext for this test
+      logger.withOperationContext = jest.fn().mockImplementation((data, callback) => {
+        const prevContext = logger.getContext();
+        logger.setContext({ ...data, operationId: 'mock-uuid' });
+        
+        if (callback) {
+          try {
+            callback();
+          } finally {
+            logger.setContext(prevContext);
+          }
+        }
+        
+        return 'mock-uuid';
+      });
+      
+      // Create a spy to track calls setContext
+      const setContextSpy = jest.spyOn(logger, 'setContext');
+      
+      // Create a callback that throws an error
+      const errorCallback = jest.fn(() => {
+        throw new Error('Test error');
+      });
+      
+      // Perform and wait for the error
+      expect(() => {
+        logger.withOperationContext(operationContext, errorCallback);
+      }).toThrow('Test error');
+      
+      // Check that the callback was called
+      expect(errorCallback).toHaveBeenCalled();
+      
+      // Verify that the context has been restored despite the error.
+      expect(setContextSpy).toHaveBeenCalledWith(expect.objectContaining(operationContext));
+      expect(setContextSpy).toHaveBeenLastCalledWith(initialContext);
     });
   });
 });
