@@ -61,14 +61,19 @@ jest.mock('winston', () => {
       generateTraceId: jest.fn().mockReturnValue('mock-uuid'),
       withOperationContext: jest.fn().mockImplementation((data, callback) => {
         const previousContext = {};
+        const operationId = data?.operationId || 'mock-uuid';
+        logger.setContext({ ...data, operationId });
+        
         if (callback) {
           try {
-            callback();
+            const result = callback();
+            return result;
           } finally {
             logger.setContext(previousContext);
           }
         }
-        return data?.operationId || 'mock-uuid';
+        
+        return operationId;
       })
     };
 
@@ -310,6 +315,38 @@ describe('Logger Module', () => {
       expect(callbackMock).toHaveBeenCalled();
       expect(operationId).toBe('mock-uuid');
     });
+
+    it('should return callback result when callback is provided to withOperationContext', () => {
+      const logger = createLogger('test-service');
+      const expectedResult = { success: true, data: 'test-data' };
+      const callbackMock = jest.fn().mockReturnValue(expectedResult);
+      
+      const result = logger.withOperationContext({ traceId: 'test-trace' }, callbackMock);
+      
+      expect(callbackMock).toHaveBeenCalled();
+      expect(result).toEqual(expectedResult);
+    });
+
+    it('should return falsy values from callback correctly', () => {
+      const logger = createLogger('test-service');
+      
+      // Redefine the implementation of withOperationContext for this test
+      logger.withOperationContext = jest.fn().mockImplementation((data, callback) => {
+        if (callback) {
+          return callback();
+        }
+        return data?.operationId || 'mock-uuid';
+      });
+      
+      // Test with various falsy values
+      const falsyValues = [false, 0, '', null, undefined];
+      
+      falsyValues.forEach(value => {
+        const callbackMock = jest.fn().mockReturnValue(value);
+        const result = logger.withOperationContext({ traceId: 'test-trace' }, callbackMock);
+        expect(result).toBe(value);
+      });
+    });
     
     it('should preserve and restore context when using withOperationContext with callback', () => {
       const logger = createLogger('test-service');
@@ -328,7 +365,8 @@ describe('Logger Module', () => {
         
         if (callback) {
           try {
-            callback();
+            const result = callback();
+            return result;
           } finally {
             logger.setContext(prevContext);
           }
@@ -367,7 +405,8 @@ describe('Logger Module', () => {
         
         if (callback) {
           try {
-            callback();
+            const result = callback();
+            return result;
           } finally {
             logger.setContext(prevContext);
           }

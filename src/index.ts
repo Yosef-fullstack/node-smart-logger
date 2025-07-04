@@ -291,18 +291,19 @@ function createLoggerFunction(service: string, customLogDir: string | null = nul
     logger.withOperationContext = function(contextData: LoggerContext = {}, callback?: () => any): any {
         const operationId = contextData.operationId || uuidv4();
         const previousContext = getContext();
+        let callbackResult = undefined;
         setContext({ ...contextData, operationId });
         
         if (callback) {
             try {
-                callback();
+                callbackResult = callback();
             } finally {
                 // Restore the previous context after callback execution
                 setContext(previousContext);
             }
         }
         
-        return operationId;
+        return callbackResult ?? operationId;
     };
 
     return logger;

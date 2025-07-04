@@ -118,6 +118,8 @@ function processDevice(deviceId, data) {
 }
 ```
 
+> **Примечание**: Метод `withOperationContext` возвращает результат выполнения callback-функции, если она была передана, или сгенерированный operation ID, если callback не был предоставлен. Это позволяет легко интегрировать управление контекстом с существующим потоком кода.
+
 ### HTTP-логгер с middleware для трейсинга
 
 ```javascript
@@ -192,7 +194,7 @@ AWS_SECRET_ACCESS_KEY=your_secret_key
 - Контекст (`[trace:abc123]`): фиолетовый
 - Сообщение: белый
 
-Это делает логи более читаемыми и позволяет быстро выделять важную информацию.
+Это делает логи более читаемыми и позволяют быстро выделять важную информацию.
 
 ### JSON формат (`LOG_FORMAT=json`)
 
@@ -274,4 +276,3 @@ jest.mock('@vitaly-yosef/node-smart-logger', () => {
 | AWS_REGION | Регион AWS | - |
 | AWS_ACCESS_KEY_ID | ID ключа доступа AWS | - |
 | AWS_SECRET_ACCESS_KEY | Секретный ключ доступа AWS | - |
- 

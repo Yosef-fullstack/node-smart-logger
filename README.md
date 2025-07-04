@@ -122,6 +122,8 @@ function processDevice(deviceId, data) {
 }
 ```
 
+> **Note**: The `withOperationContext` method returns the result of the callback function if provided, or the generated operation ID if no callback is given. This allows you to seamlessly integrate context management with your existing code flow.
+
 ### HTTP-logger with tracing middleware.
 
 ```javascript
@@ -278,4 +280,3 @@ The logging module uses the following environment variables:
 | AWS_REGION | AWS region | - |
 | AWS_ACCESS_KEY_ID | AWS access key ID | - |
 | AWS_SECRET_ACCESS_KEY | AWS secret access key | - |
- 
