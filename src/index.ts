@@ -3,9 +3,13 @@ import morgan from 'morgan';
 import path from 'path';
 import fs from 'fs';
 import os from 'os';
+import { AsyncLocalStorage } from 'async_hooks';
 import 'winston-cloudwatch';
 import { v4 as uuidv4 } from 'uuid';
 import { Request, Response, NextFunction } from 'express';
+import { validateLoggerContext, validateServiceName, sanitizeForLogging } from './validation';
+import { checkRateLimit } from './rate-limiting';
+import { setCloudWatchTransport, shutdownLogger } from './graceful-shutdown';
 
 // Types (interface) for CloudWatch transport
 interface CloudWatchTransportOptions {
@@ -32,7 +36,8 @@ interface ExtendedLogger extends winston.Logger {
     getContext: () => LoggerContext;
     clearContext: () => void;
     generateTraceId: () => string;
-    withOperationContext: (contextData?: LoggerContext, callback?: () => void) => string;
+    withOperationContext: (contextData?: LoggerContext, callback?: () => void) => any;
+    shutdown: () => Promise<void>;
 }
 
 // Options (interface) for creation of the logger.
@@ -47,19 +52,21 @@ interface HttpLoggerOptions {
     skipLogging?: boolean;
 }
 
-// Creating a namespace for storing the logging context
-const contextStorage = new Map<string, LoggerContext>();
+// Creating AsyncLocalStorage for storing the logging context
+const asyncLocalStorage = new AsyncLocalStorage<LoggerContext>();
 
 const levels = {
-    alert: 0,
-    error: 1,
-    warn: 2,
-    info: 3,
-    http: 4,
-    debug: 5,
+    critical: 0,
+    alert: 1,
+    error: 2,
+    warn: 3,
+    info: 4,
+    http: 5,
+    debug: 6,
 };
 
 const colors = {
+    critical: 'red',
     alert: 'red',
     error: 'magenta',
     warn: 'yellow',
@@ -87,8 +94,10 @@ function generateTraceId(): string {
  * @param {LoggerContext} context - Object with context data.
  */
 function setContext(context: LoggerContext): void {
-    const currentContext = contextStorage.get('current') || {};
-    contextStorage.set('current', { ...currentContext, ...context });
+    // Validate and sanitize context data
+    const validatedContext = validateLoggerContext(context);
+    const currentContext = asyncLocalStorage.getStore() || {};
+    asyncLocalStorage.enterWith({ ...currentContext, ...validatedContext });
 }
 
 /**
@@ -96,14 +105,14 @@ function setContext(context: LoggerContext): void {
  * @returns {LoggerContext} Current logging context
  */
 function getContext(): LoggerContext {
-    return contextStorage.get('current') || {};
+    return asyncLocalStorage.getStore() || {};
 }
 
 /**
  * Clears the context for the current request
  */
 function clearContext(): void {
-    contextStorage.delete('current');
+    asyncLocalStorage.enterWith({});
 }
 
 /**
@@ -124,6 +133,9 @@ const logFormat = (): string => {
  * @returns {ExtendedLogger}
  */
 function createLoggerFunction(service: string, customLogDir: string | null = null, options: LoggerOptions = {}): ExtendedLogger {
+    // Validate service name
+    const validatedServiceName = validateServiceName(service);
+
     if (!service) {
         service = 'default';
         console.warn('Logger service name not provided, using "default".');
@@ -159,7 +171,9 @@ function createLoggerFunction(service: string, customLogDir: string | null = nul
                 const context = getContext();
                 const traceId = context.traceId || '-';
                 const requestId = context.requestId || '-';
-                return `${info.timestamp} [${service}] ${info.level} [${traceId}] [${requestId}]: ${info.message}${info.stack ? '\n' + info.stack : ''}`;
+                // Sanitize message to prevent log injection
+                const sanitizedMessage = sanitizeForLogging(info.message);
+                return `${info.timestamp} [${service}] ${info.level} [${traceId}] [${requestId}]: ${sanitizedMessage}${info.stack ? '\n' + info.stack : ''}`;
             }
         )
     ) : winston.format.json();
@@ -180,13 +194,13 @@ function createLoggerFunction(service: string, customLogDir: string | null = nul
                 if (deviceId !== '-') contextStr += ` [device:${deviceId}]`;
                 if (userId !== '-') contextStr += ` [user:${userId}]`;
 
-                return `${info.timestamp} [${info.service}] ${info.level.toUpperCase()} ${contextStr}: ${info.message}${info.stack ? '\n' + info.stack : ''}`;
+                // Sanitize message to prevent log injection
+                const sanitizedMessage = sanitizeForLogging(info.message);
+
+                return `${info.timestamp} [${info.service}] ${info.level.toUpperCase()} ${contextStr}: ${sanitizedMessage}${info.stack ? '\n' + info.stack : ''}`;
             }
         )
-    ) : winston.format.combine(
-        winston.format.timestamp({ format: 'YYYY-MM-DD HH:mm:ss:ms' }),
-        winston.format.json()
-    );
+    ) : winston.format.json();
 
     const cloudwatchFormat = winston.format.combine(
         winston.format.timestamp(),
@@ -203,6 +217,11 @@ function createLoggerFunction(service: string, customLogDir: string | null = nul
         if (context.requestId) info.requestId = context.requestId;
         if (context.userId) info.userId = context.userId;
         if (context.deviceId) info.deviceId = context.deviceId;
+
+        // Sanitize metadata to prevent log injection
+        if (info.message) {
+            info.message = sanitizeForLogging(info.message);
+        }
 
         return info;
     });
@@ -289,20 +308,24 @@ function createLoggerFunction(service: string, customLogDir: string | null = nul
 
     // Adding a convenient method for creating an operational context
     logger.withOperationContext = function(contextData: LoggerContext = {}, callback?: () => any): any {
-        const operationId = contextData.operationId || uuidv4();
+        // Validate and sanitize context data
+        const validatedContext = validateLoggerContext(contextData);
+        const operationId = validatedContext.operationId || uuidv4();
         const previousContext = getContext();
         let callbackResult = undefined;
-        setContext({ ...contextData, operationId });
-        
-        if (callback) {
-            try {
-                callbackResult = callback();
-            } finally {
-                // Restore the previous context after callback execution
-                setContext(previousContext);
+
+        // Run the callback within the new context
+        asyncLocalStorage.run({ ...previousContext, ...validatedContext, operationId }, () => {
+            if (callback) {
+                try {
+                    callbackResult = callback();
+                } finally {
+                    // Restore the previous context after callback execution
+                    asyncLocalStorage.enterWith(previousContext);
+                }
             }
-        }
-        
+        });
+
         return callbackResult ?? operationId;
     };
 
@@ -329,20 +352,21 @@ function createHttpLoggerMiddleware(loggerInstance: ExtendedLogger, options: Htt
 
     // Creating middleware to add traceId and requestId to the request
     const traceMiddleware = (req: Request, res: Response, next: NextFunction): void => {
-        const traceId = req.headers['x-trace-id'] as string || loggerInstance.generateTraceId();
-        const requestId = req.headers['x-request-id'] as string || loggerInstance.generateTraceId();
+        // Sanitize headers to prevent log injection
+        const traceId = sanitizeForLogging(req.headers['x-trace-id'] as string) || loggerInstance.generateTraceId();
+        const requestId = sanitizeForLogging(req.headers['x-request-id'] as string) || loggerInstance.generateTraceId();
 
-        // Set the context for the current request
-        loggerInstance.setContext({ traceId, requestId });
+        // Run the rest of the middleware chain within the context
+        asyncLocalStorage.run({ traceId, requestId }, () => {
+            res.setHeader('X-Trace-ID', traceId);
+            res.setHeader('X-Request-ID', requestId);
 
-        res.setHeader('X-Trace-ID', traceId);
-        res.setHeader('X-Request-ID', requestId);
+            res.on('finish', () => {
+                clearContext();
+            });
 
-        res.on('finish', () => {
-            loggerInstance.clearContext();
+            next();
         });
-
-        next();
     };
 
     interface ExtendedMorganOptions {
@@ -408,7 +432,8 @@ const loggerLibrary = {
     setContext,
     getContext,
     clearContext,
-    generateTraceId
+    generateTraceId,
+    shutdownLogger
 };
 
 export const createLogger = loggerLibrary.createLogger;
@@ -418,4 +443,5 @@ export const getLoggerContext = loggerLibrary.getContext;
 export const setLoggerContext = loggerLibrary.setContext;
 export const clearLoggerContext = loggerLibrary.clearContext;
 export const generateLoggerTraceId = loggerLibrary.generateTraceId;
+export const shutdown = loggerLibrary.shutdownLogger;
 export default loggerLibrary;
