@@ -3,7 +3,8 @@
 [![npm version](https://img.shields.io/npm/v/@vitaly-yosef/node-smart-logger.svg)](https://www.npmjs.com/package/@vitaly-yosef/node-smart-logger)
 [![Downloads](https://img.shields.io/npm/dm/@vitaly-yosef/node-smart-logger.svg)](https://www.npmjs.com/package/@vitaly-yosef/node-smart-logger)
 [![Build Status](https://github.com/Yosef-fullstack/node-smart-logger/actions/workflows/main.yml/badge.svg)](https://github.com/Yosef-fullstack/node-smart-logger/actions)
-[![Coverage Status](https://coveralls.io/repos/github/Yosef-fullstack/node-smart-logger/badge.svg?branch=master)](https://coveralls.io/github/Yosef-fullstack/node-smart-logger?branch=master)
+[![Coverage Status Coveralls](https://coveralls.io/repos/github/Yosef-fullstack/node-smart-logger/badge.svg?branch=master)](https://coveralls.io/github/Yosef-fullstack/node-smart-logger?branch=master)
+[![Coverage Status Codecov](https://codecov.io/gh/yosef-fullstack/node-smart-logger/branch/master/graph/badge.svg)](https://codecov.io/gh/yosef-fullstack/node-smart-logger/branch/master/graph/badge.svg)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
 Универсальный модуль логирования с расширенными функциями, включая структурированное логирование в формате JSON, интеграцию с AWS CloudWatch Logs и контекстное логирование. Его можно использовать как для ESM, так и для CommonJS.
@@ -20,6 +21,23 @@
 - Middleware для HTTP-запросов с автоматическим трейсингом
 - Middleware для обработки ошибок
 - Совместимость с модулями ESM и CommonJS (import/require)
+
+## Новое в версии 1.3.0
+
+### Добавлено
+- **Ограничение частоты логов**: Защита от переполнения (1000 логов/секунду)
+- **Корректное завершение**: Гарантированная запись всех логов перед завершением
+- **Улучшенная обработка ошибок**: Более информативные сообщения и трассировка стека
+- **Расширенное тестирование**: Полное покрытие тестами всех функций
+
+### Изменено
+- Метод resetRateLimit теперь принимает необязательный параметр timestamp
+- Улучшено форматирование логов и работа с контекстом
+
+### Исправлено
+- Исправлена работа с контекстом в асинхронных операциях
+- Улучшены типы TypeScript
+- Различные исправления ошибок и улучшение производительности
 
 ## Установка
 

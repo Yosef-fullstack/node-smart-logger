@@ -3,10 +3,9 @@
 [![npm version](https://img.shields.io/npm/v/@vitaly-yosef/node-smart-logger.svg)](https://www.npmjs.com/package/@vitaly-yosef/node-smart-logger)
 [![Downloads](https://img.shields.io/npm/dm/@vitaly-yosef/node-smart-logger.svg)](https://www.npmjs.com/package/@vitaly-yosef/node-smart-logger)
 [![Build Status](https://github.com/Yosef-fullstack/node-smart-logger/actions/workflows/main.yml/badge.svg)](https://github.com/Yosef-fullstack/node-smart-logger/actions)
-[![Coverage Status](https://coveralls.io/repos/github/Yosef-fullstack/node-smart-logger/badge.svg?branch=master)](https://coveralls.io/github/Yosef-fullstack/node-smart-logger?branch=master)
+[![Coverage Status Coveralls](https://coveralls.io/repos/github/Yosef-fullstack/node-smart-logger/badge.svg?branch=master)](https://coveralls.io/github/Yosef-fullstack/node-smart-logger?branch=master)
+[![Coverage Status Codecov](https://codecov.io/gh/yosef-fullstack/node-smart-logger/branch/master/graph/badge.svg)](https://codecov.io/gh/yosef-fullstack/node-smart-logger/branch/master/graph/badge.svg)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-
-Universal logging module with advanced features, including structured JSON logging, AWS CloudWatch Logs integration, and contextual logging.
 
 # Node Smart Logger
 
@@ -14,16 +13,43 @@ A universal logger (initially created as a module for one of my project) with ad
 
 ## Features
 
-- Structured logging in JSON format
-- Flexible log format selection (text for development, JSON for production)
-- Log file rotation with compression
-- AWS CloudWatch Logs integration
-- Contextual logging (trace ID, request ID, operation ID, device ID, user ID)
-- Enhanced logging levels and colors for better visibility and filtering
-- Metadata logging (hostname, environment, service name)
-- Middleware for HTTP-requests with automated tracing
-- Error handling middleware
-- Compatible with both ESM and CommonJS modules (import/require)
+- **Structured Logging**: JSON format with customizable fields
+- **Log Rotation**: Automatic log rotation with compression
+- **Cloud Integration**: AWS CloudWatch Logs support
+- **Context-Aware Logging**: Trace ID, request ID, operation ID, and more
+- **Security**: Protection against log injection attacks
+- **Rate Limiting**: Built-in protection against log flooding
+- **Graceful Shutdown**: Ensures all logs are flushed before process termination
+- **HTTP Middleware**: Built-in Express/Connect middleware for request logging
+- **Error Handling**: Comprehensive error logging with stack traces
+- **Module-compatible**: Works with both ESM (`import`) and CommonJS (`require`)
+- **Environment-Aware**: Using .env-varibles for configuration:
+  * LOG_LEVEL: Logging level (error, warn, info, http, verbose, debug, silly) **
+  * LOG_FORMAT: Logs format (json, text) 
+  * LOG_DIR: User's directory for logs
+  * AWS_CLOUDWATCH_ENABLED: On/off CloudWatch logging
+  * AWS_CLOUDWATCH_GROUP: Name of CloudWatch log group
+  * AWS_CLOUDWATCH_STREAM: Name of CloudWatch log stream
+  * AWS_REGION: AWS-region for CloudWatch
+  
+  ** *LOG_LEVEL - despite the description in README, it is not read directly from process.env.LOG_LEVEL, only NODE_ENV is used*
+
+## New in v1.3.0
+
+### Added
+- **Rate Limiting**: Protection against log flooding attacks (1000 logs/second)
+- **Graceful Shutdown**: Ensures all logs are flushed before process termination
+- **Improved Error Handling**: Better error messages and stack traces
+- **Enhanced Testing**: Comprehensive test coverage for all features
+
+### Changed
+- **Rate Limiting**: resetRateLimit now accepts an optional timestamp parameter
+- Improved log formatting and context handling
+
+### Fixed
+- Fixed context handling in async operations
+- Improved type definitions
+- Various bug fixes and performance improvements
 
 ## Installation
 
@@ -45,8 +71,15 @@ pnpm add @vitaly-yosef/node-smart-logger
 ```javascript
 import { createLogger } from '@vitaly-yosef/node-smart-logger';
 
+// Create a logger instance
+const logger = createLogger('my-service');
+
 // Create a logger instance with a service name and log file path. 
 const logger = createLogger('my-service', './logs');
+
+// Basic logging
+logger.info('Application started');
+logger.error('Something went wrong', { error: error.stack });
 
 // Different levels logging
 logger.debug('Debug message');
@@ -54,6 +87,32 @@ logger.info('Info message');
 logger.warn('Warning message');
 logger.error('Error message');
 logger.alert('Critical alert');
+```
+### Rate Limiting
+The logger includes built-in rate limiting to protect against log flooding:
+
+```javascript
+// Check if logging is allowed
+if (logger.checkRateLimit()) {
+    logger.info('This log entry is within rate limit');
+} else {
+    // Handle rate limit exceeded
+}
+
+// Reset rate limiter (useful for tests)
+logger.resetRateLimit();
+```
+
+### Graceful Shutdown
+Ensure all logs are flushed before process termination:
+```javascript
+const { shutdown } = require('@vitaly-yosef/node-smart-logger');
+
+// Handle process termination
+process.on('SIGTERM', async () => {
+  await shutdown();
+  process.exit(0);
+});
 ```
 
 ### Contextual logging
@@ -64,6 +123,11 @@ import { createLogger, setLoggerContext, clearLoggerContext, generateLoggerTrace
 const logger = createLogger('my-service', './logs');
 
 // Generation and setting context
+// variant 1
+logger.setContext({ userId: '123', requestId: 'req-456' });
+logger.info('User action completed', { action: 'login' });
+
+// variant 2 
 const traceId = generateLoggerTraceId();
 setLoggerContext({ traceId, deviceId: 'device-123' });
 
