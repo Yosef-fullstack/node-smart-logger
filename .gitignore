@@ -44,4 +44,4 @@ coverage/
 # Package files
 *.tgz
 
-custom_docs/
+/custom_docs/
